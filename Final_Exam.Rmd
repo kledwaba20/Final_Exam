@@ -1,0 +1,120 @@
+---
+title: "Final_Exam"
+author: "Khutso Ledwaba"
+date: "2022-12-12"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+```
+
+#Calling the dataset and libraries
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(caret)
+library(caretEnsemble)
+library(psych)
+library(Amelia)
+library(mice)
+library(GGally)
+library(rpart)
+library(randomForest)
+library("class")
+library("factoextra")
+library("ggpubr")
+library("esquisse")
+library("dplyr")
+
+
+#call movies data file
+Movies <- read.csv("netflix_titles.csv")
+#omiting the NA's and selecting the main columns needed for the prediction
+NewMovies <- Movies %>% select(1: 8)
+
+#Studying the structure of the data
+str(NewMovies)
+
+#Top five rows
+head(NewMovies, n= 5)
+#Bottom 5 rows
+tail(NewMovies, n= 5)
+```
+
+#Show the number of movies and tv shows
+```{r}
+table(NewMovies['type'])
+
+#Netflix has more movies than Tv shows
+```
+
+#Partioning the data into training and test
+```{r}
+NM <- createDataPartition(NewMovies$Trailer.audience.views..weekly.,p=0.7,list=F)
+
+Movies_Train <- NewMovies[NM,]
+Movies_Test <- NewMovies[-NM,]
+
+NM_Normal <- preProcess(Movies_Train[,-c(4,7:8)],method="range")
+
+NM_Train <- predict(NM_Normal, Movies_Train)
+NM_Test <- predict(NM_Normal,Movies_Test)
+```
+
+#Finding the optimal k value
+```{r}
+Movies_plot <- fviz_nbclust(NM_Train[,-c(4,7:8)],kmeans,method="silhouette")
+Movies_plot
+```
+ 
+#Using Kmeans to form the clusters
+```{r}
+Movies_k <- kmeans(NM_Train[,-c(4,7:8)],centers=2,nstart=25)
+
+Movies_Train$clusters <- Movies_k$cluster
+
+#esquisser()
+ggplot(Movies_Train) +
+  aes(x = clusters, fill = Genre) +
+  geom_histogram(bins = 30L) +
+  scale_fill_hue(direction = 1) +
+  theme_minimal()
+
+#This plot tells us two pieces of key information:
+#Both clusters represent a strong interest in the students love for action and thriller genre movies. A key area for the university to focus on.
+#This graph also displays that cluster 1 contains the most interest in each Genre with Action being the highest. Analyzing the the data it shows that even though Cluster 2 had more audience views for the movie trailers. The trailers in cluster 1 were of higher quality and that's what drew in the students to those films.
+```
+
+#clustering of the different factors and interpretation of the data
+```{r}
+Movies_Train %>% select(IMDB.rating,clusters) %>% group_by(clusters,IMDB.rating) %>% count()
+
+Movies_Train %>% select(Genre,clusters) %>% group_by(clusters,Genre) %>% count()
+
+#Interpretation of the data
+
+#Based on the findings of the data, The IMDB ratings are highest in the cluster one group which is indicative of why most genre categories have the highest view in cluster one, because Cluster one contains the best selection of movie choices.
+
+#The university can base their approach on which movies to stream not only on the genre of well liked movies but also the imdb ranking of those movies.
+```
+
+#Aggretion of the clusters to draw final conclusion
+```{r}
+aggregate(Movies_Train[,-c(4,7:8)], by=list(Movies_Train$clusters),FUN="median")
+```
+
+#Conclusion
+```{r}
+#From this data the university will be able to gain a general sense of what movies/shows they can release to the student body.
+#Just because a movie has a high trailer view, it doesn't mean the movie will be watched.
+#Multiple factors go into a student's movie choice. What is the genre of the film? How well is it rated by the public and critics alike?
+#Another factor is the budget and box office sales. Cluster 2 movies had the highest budget, but they were the most poorly rated by the critics. 
+
+#Based on the data if the university had to pick a genre, Thriller would be the best option because it performed well in both clusters. The reason being is that Thriller comprises elements of all genres allowing almost each person to enjoy it.
+```
+
+
